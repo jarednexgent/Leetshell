@@ -13,7 +13,6 @@ Leetshell creates unique, position-independent shellcode for 64-bit Windows targ
 - Random XOR key ensures a fresh, polymorphic payload on each run
 - Supports CMD and PowerShell reverse-shell shellcode
 - Outputs as a C-array or writes directly to a raw .bin file
-- Includes conversion scripts in the tools directory for C, C# and PowerShell formats
 
 ---
 
