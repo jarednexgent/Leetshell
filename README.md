@@ -10,7 +10,7 @@ Leetshell creates unique, position-independent shellcode for 64-bit Windows targ
 
 ### Features
 
-- Randomize multi-byte XOR encryption ensures a fresh, polymorphic payload on each run
+- Randomized multi-byte XOR encryption ensures a fresh, polymorphic payload on each run
 - Supports CMD and PowerShell reverse-shell shellcode
 - Outputs as a C-array or writes directly to a raw .bin file
 
