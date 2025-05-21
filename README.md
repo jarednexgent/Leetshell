@@ -42,4 +42,3 @@ Leetshell creates unique, position-independent shellcode for 64-bit Windows targ
 - Assembler:
   - `nasm` with `-f win64` format
 
----
