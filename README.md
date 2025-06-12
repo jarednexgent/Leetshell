@@ -2,7 +2,7 @@
 
 [![leetshell-logo.png](https://i.postimg.cc/VLhLqv3K/leetshell-logo.png)](https://postimg.cc/F7j4mrFS)
 
-#### Polymorphic, Position-Independent Reverse-Shell Generator
+#### Polymorphic, Position-Independent Windows Shellcode Generator
 
 Leetshell creates unique, position-independent shellcode for 64-bit Windows targets. It can produce both CMD and PowerShell reverse shells, packaging them as C-style arrays or raw binaries.
 
