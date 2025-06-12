@@ -1,6 +1,6 @@
 # Leetshell
 
-[![leetshell-2.png](https://i.postimg.cc/KzQfHg1n/leetshell-2.png)](https://postimg.cc/7GGSChM6)
+[![leetshell-logo.png](https://i.postimg.cc/VLhLqv3K/leetshell-logo.png)](https://postimg.cc/F7j4mrFS)
 
 #### Polymorphic, Position-Independent Reverse-Shell Generator
 
