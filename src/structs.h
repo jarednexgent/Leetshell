@@ -54,7 +54,4 @@ typedef struct _LDR_DATA_TABLE_ENTRY2 {
 	UNICODE_STRING BaseDllName;
 } LDR_DATA_TABLE_ENTRY2, *PLDR_DATA_TABLE_ENTRY2;
 
-DWORD GetJsHash(PCSTR String);
-
-HMODULE GetFuncAddr(DWORD64 FunctionHash);
 
