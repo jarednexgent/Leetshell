@@ -18,6 +18,8 @@ Leetshell creates unique, position-independent shellcode for 64-bit Windows targ
 
 ### Usage
 
+Run the script with a listener IP and port. Optionally specify `cmd` or `powershell` as the reverse shell type (defaults to `cmd`). Add `--raw` to output a raw binary instead of a C-style array.
+
 ```
 ./Leetshell.sh <ip> <port> [cmd|powershell] [--raw]
 ```
