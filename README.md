@@ -2,21 +2,15 @@
 
 [![leetshell-logo.png](https://i.postimg.cc/VLhLqv3K/leetshell-logo.png)](https://postimg.cc/F7j4mrFS)
 
-#### Polymorphic, Position-Independent Windows Shellcode Generator
-
 Leetshell creates unique, position-independent shellcode for 64-bit Windows targets. It can produce both CMD and PowerShell reverse shells, packaging them as C-style arrays or raw binaries.
 
----
-
-### Features
+## Features
 
 - Randomized multi-byte XOR encryption ensures a fresh, polymorphic payload on each run
 - Supports CMD and PowerShell reverse-shell shellcode
-- Outputs as a C-array or writes directly to a raw .bin file
+- Outputs as a C-array or writes directly to a raw `.bin` file
 
----
-
-### Usage
+## Usage
 
 Run the script with a listener IP and port. Optionally specify `cmd` or `powershell` as the reverse shell type (defaults to `cmd`). Add `--raw` to output a raw binary instead of a C-style array.
 
@@ -26,9 +20,7 @@ Run the script with a listener IP and port. Optionally specify `cmd` or `powersh
 
 [![leetshell-demo.gif](https://i.postimg.cc/5jdsFqYH/leetshell-demo.gif)](https://postimg.cc/p5CfwjBx)
 
----
-
-### System Requirements
+## System Requirements
 
 - Linux-based OS (Parrot OS, Kali, Ubuntu, etc.)
 - Tools required:
