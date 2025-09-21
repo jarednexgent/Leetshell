@@ -2,12 +2,12 @@
 
 [![leetshell-logo.png](https://i.postimg.cc/VLhLqv3K/leetshell-logo.png)](https://postimg.cc/F7j4mrFS)
 
-Leetshell creates unique, position-independent shellcode for 64-bit Windows targets. It can produce both CMD and PowerShell reverse shells, packaging them as C-style arrays or raw binaries.
+Leetshell creates unique, position-independent shellcode for 64-bit Windows targets.
 
 ## Features
 
-- Randomized multi-byte XOR encryption ensures a fresh, polymorphic payload on each run
 - Supports CMD and PowerShell reverse-shell shellcode
+- Randomized multi-byte XOR encryption ensures a fresh, polymorphic payload on each run  
 - Outputs as a C-array or writes directly to a raw `.bin` file
 
 ## Usage

