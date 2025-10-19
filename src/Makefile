@@ -4,5 +4,5 @@ LINKER=x86_64-w64-mingw32-ld
 
 leetshell:
 	$(ASSEMBLER) alignstack.asm -o alignstack.o
-	$(CC_64) leetshell.c -Wall -m64 -ffunction-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -nostdlib -fno-ident -fno-inline -Os -c -o leetshell.o -Wl,-Tlinker.ld,--no-seh
-	$(LINKER) -s alignstack.o leetshell.o -o leetshell.exe
+	$(CC_64) leetshell.c -m64 -Os -fno-unwind-tables -fno-asynchronous-unwind-tables -nostdlib -fno-ident -Os -c -o leetshell.o
+	$(LINKER) -T linker.ld --no-seh -s alignstack.o leetshell.o -o leetshell.exe
