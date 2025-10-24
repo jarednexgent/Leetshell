@@ -2,23 +2,39 @@
 
 [![leetshell-logo.png](https://i.postimg.cc/VLhLqv3K/leetshell-logo.png)](https://postimg.cc/F7j4mrFS)
 
-Leetshell creates unique, position-independent shellcode for 64-bit Windows targets.
+Leetshell creates polymorphic reverse-shell payloads for 64-bit Windows targets.
 
 ## Features
 
-- Supports CMD and PowerShell reverse-shell shellcode
-- Randomized multi-byte XOR encryption ensures a fresh, polymorphic payload on each run  
-- Outputs as a C-array or writes directly to a raw `.bin` file
+- Generates x64 CMD or PowerShell reverse-TCP payloads
+- Produces unique builds via per-run XOR keys and randomized API-hash seeds
+- Emits payloads as a C array, EXE, DLL, or raw shellcode
+- Works from common Linux toolchains with a simple script + Makefile
 
 ## Usage
 
-Run the script with a listener IP and port. Optionally specify `cmd` or `powershell` as the reverse shell type (defaults to `cmd`). Add `--raw` to output a raw binary instead of a C-style array.
+Run `Leetshell.sh` with your listener IP and port; optionally specify the shell type, payload format, and output path.
 
 ```
-./Leetshell.sh <ip> <port> [cmd|powershell] [--raw]
-```
+██╗     ███████╗███████╗████████╗ ███████╗██╗  ██╗███████╗██╗     ██╗      
+██║     ██╔════╝██╔════╝╚══██╔══╝ ██╔════╝██║  ██║██╔════╝██║     ██║ 
+██║     █████╗  █████╗     ██║    ███████╗███████║█████╗  ██║     ██║      
+██║     ██╔══╝  ██╔══╝     ██║    ╚════██║██╔══██║██╔══╝  ██║     ██║ 
+███████╗███████╗███████╗   ██║    ███████║██║  ██║███████╗███████╗███████╗ 
+╚══════╝╚══════╝╚══════╝   ╚═╝    ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+ Copyright © 2025 jarednexgent (https://github.com/jarednexgent)  
 
-[![leetshell-demo.gif](https://i.postimg.cc/5jdsFqYH/leetshell-demo.gif)](https://postimg.cc/p5CfwjBx)
+Usage: 
+   ./Leetshell.sh [-h] -i IP -p PORT [-t TYPE] [-f FORMAT] [-o OUTPUT]
+
+Options:
+  -i, --ip        IP address
+  -p, --port      listening port
+  -t, --type      shell type {cmd, powershell}
+  -f, --format    payload format {c, exe, dll, raw}
+  -o, --output    output path
+  -h, --help      show this help message
+```
 
 ## System Requirements
 

