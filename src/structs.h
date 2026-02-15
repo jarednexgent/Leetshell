@@ -108,6 +108,7 @@ typedef struct _PEB {
 } PEB,*PPEB;
 
 
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 // Function Pointers
 typedef HMODULE (WINAPI* PLOADLIBRARYA)(LPCSTR);
 typedef int (WINAPI* PWSASTARTUP)(WORD, LPWSADATA);
@@ -115,6 +116,7 @@ typedef SOCKET (WINAPI* PWSASOCKETA)(int, int, int, WSAPROTOCOL_INFOA*, DWORD, D
 typedef int (WINAPI* PCONNECT)(SOCKET, struct sockaddr*, int);
 typedef BOOL (WINAPI* PCREATEPROCESSA)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID , LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
 
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 // APIs
 typedef struct _WIN32_API {

